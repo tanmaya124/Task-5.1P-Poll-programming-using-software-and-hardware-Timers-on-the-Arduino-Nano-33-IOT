@@ -1,0 +1,61 @@
+#include <DHT.h>
+#include <Wire.h>
+#include <RTCZero.h>
+
+#define DHTPIN 2
+#define DHTTYPE DHT22
+#define LEDPIN 13
+
+DHT dht(DHTPIN, DHTTYPE);
+RTCZero rtc;
+
+unsigned long previousMillis = 0;
+unsigned long tempMillis = 0;
+int ledState = LOW;
+float temperature = 0;
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+  pinMode(LEDPIN, OUTPUT);
+  rtc.begin();
+  rtc.setTime(0, 0, 0);
+  rtc.setDate(1, 1, 2023);
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - tempMillis >= 10000) {
+    tempMillis = currentMillis;
+    temperature = dht.readTemperature();
+    temperature = temperature - 12;
+
+    char dateTime[20];
+    snprintf(dateTime, sizeof(dateTime), "%02d/%02d/%04d %02d:%02d:%02d",
+             rtc.getDay(), rtc.getMonth(), rtc.getYear(),
+             rtc.getHours(), rtc.getMinutes(), rtc.getSeconds());
+    
+    Serial.print("Time: ");
+    Serial.print(dateTime);
+    Serial.print(" - Temperature: ");
+    Serial.print(temperature);
+    Serial.println(" *C");
+  }
+
+  if (temperature > 25) {
+    if (currentMillis - previousMillis >= 50) {
+      previousMillis = currentMillis;
+      ledState = !ledState;
+      digitalWrite(LEDPIN, ledState);
+    }
+  } else if (temperature < 10) {
+    if (currentMillis - previousMillis >= 2000) {
+      previousMillis = currentMillis;
+      ledState = !ledState;
+      digitalWrite(LEDPIN, ledState);
+    }
+  } else {
+    digitalWrite(LEDPIN, LOW);
+  }
+}
